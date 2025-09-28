@@ -65,7 +65,7 @@ public class StockRecord implements ParquetRecord {
   @Override
   public Dehydrator<ParquetRecord> getDehydrator() {
     return (record, valueWriter) -> {
-      valueWriter.write("localDate", localDate.toEpochDay());
+      valueWriter.write("localDate", (int) localDate.toEpochDay());
       valueWriter.write("id", id);
       valueWriter.write("close", close);
       valueWriter.write("high", high);
