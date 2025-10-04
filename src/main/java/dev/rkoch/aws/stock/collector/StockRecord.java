@@ -7,9 +7,18 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Types;
 import com.crazzyghost.alphavantage.timeseries.response.StockUnit;
 import blue.strategic.parquet.Dehydrator;
+import blue.strategic.parquet.Hydrator;
 import dev.rkoch.aws.s3.parquet.ParquetRecord;
 
 public class StockRecord implements ParquetRecord {
+
+  private static final String LOCAL_DATE = "localDate";
+  private static final String ID = "id";
+  private static final String CLOSE = "close";
+  private static final String HIGH = "high";
+  private static final String LOW = "low";
+  private static final String OPEN = "open";
+  private static final String VOLUME = "volume";
 
   public static StockRecord of(final LocalDate localDate, final String id, final double close, final double high, final double low, final double open,
       final long volume) {
@@ -35,18 +44,21 @@ public class StockRecord implements ParquetRecord {
     try {
       return Long.parseLong(value);
     } catch (NumberFormatException e) {
-      System.out.println(e.getMessage());
       return 0L;
     }
   }
 
-  private final LocalDate localDate;
-  private final String id;
-  private final double close;
-  private final double high;
-  private final double low;
-  private final double open;
-  private final long volume;
+  private LocalDate localDate;
+  private String id;
+  private double close;
+  private double high;
+  private double low;
+  private double open;
+  private long volume;
+
+  public StockRecord() {
+
+  }
 
   public StockRecord(LocalDate localDate, String id, double close, double high, double low, double open, long volume) {
     this.localDate = localDate;
@@ -63,20 +75,66 @@ public class StockRecord implements ParquetRecord {
   }
 
   @Override
-  public Dehydrator<ParquetRecord> getDehydrator() {
+  public Dehydrator<StockRecord> getDehydrator() {
     return (record, valueWriter) -> {
-      valueWriter.write("localDate", (int) localDate.toEpochDay());
-      valueWriter.write("id", id);
-      valueWriter.write("close", close);
-      valueWriter.write("high", high);
-      valueWriter.write("low", low);
-      valueWriter.write("open", open);
-      valueWriter.write("volume", volume);
+      valueWriter.write(LOCAL_DATE, (int) record.getLocalDate().toEpochDay());
+      valueWriter.write(ID, record.getId());
+      valueWriter.write(CLOSE, record.getClose());
+      valueWriter.write(HIGH, record.getHigh());
+      valueWriter.write(LOW, record.getLow());
+      valueWriter.write(OPEN, record.getOpen());
+      valueWriter.write(VOLUME, record.getVolume());
     };
   }
 
   public double getHigh() {
     return high;
+  }
+
+  @Override
+  public Hydrator<StockRecord, StockRecord> getHydrator() {
+    return new Hydrator<>() {
+
+      @Override
+      public StockRecord add(StockRecord target, String heading, Object value) {
+        switch (heading) {
+          case LOCAL_DATE:
+            target.setLocalDate((LocalDate) value);
+            return target;
+          case ID:
+            target.setId((String) value);
+            return target;
+          case CLOSE:
+            target.setClose((double) value);
+            return target;
+          case HIGH:
+            target.setHigh((double) value);
+            return target;
+          case LOW:
+            target.setLow((double) value);
+            return target;
+          case OPEN:
+            target.setOpen((double) value);
+            return target;
+          case VOLUME:
+            target.setVolume((long) value);
+            return target;
+          default:
+            throw new IllegalArgumentException("Unexpected value: " + heading);
+        }
+      }
+
+      @Override
+      public StockRecord finish(StockRecord target) {
+        return target;
+      }
+
+      @Override
+      public StockRecord start() {
+        return new StockRecord();
+      }
+
+    };
   }
 
   public String getId() {
@@ -98,18 +156,51 @@ public class StockRecord implements ParquetRecord {
   @Override
   public MessageType getSchema() {
     return new MessageType("stock-record", //
-        Types.required(PrimitiveTypeName.INT32).as(LogicalTypeAnnotation.dateType()).named("localDate"), //
-        Types.required(PrimitiveTypeName.BINARY).as(LogicalTypeAnnotation.stringType()).named("id"), //
-        Types.required(PrimitiveTypeName.DOUBLE).named("close"), //
-        Types.required(PrimitiveTypeName.DOUBLE).named("high"), //
-        Types.required(PrimitiveTypeName.DOUBLE).named("low"), //
-        Types.required(PrimitiveTypeName.DOUBLE).named("open"), //
-        Types.required(PrimitiveTypeName.INT64).named("volume") //
+        Types.required(PrimitiveTypeName.INT32).as(LogicalTypeAnnotation.dateType()).named(LOCAL_DATE), //
+        Types.required(PrimitiveTypeName.BINARY).as(LogicalTypeAnnotation.stringType()).named(ID), //
+        Types.required(PrimitiveTypeName.DOUBLE).named(CLOSE), //
+        Types.required(PrimitiveTypeName.DOUBLE).named(HIGH), //
+        Types.required(PrimitiveTypeName.DOUBLE).named(LOW), //
+        Types.required(PrimitiveTypeName.DOUBLE).named(OPEN), //
+        Types.required(PrimitiveTypeName.INT64).named(VOLUME) //
     );
   }
 
   public long getVolume() {
     return volume;
+  }
+
+  public void setClose(double close) {
+    this.close = close;
+  }
+
+  public void setHigh(double high) {
+    this.high = high;
+  }
+
+  public void setId(String id) {
+    this.id = id;
+  }
+
+  public void setLocalDate(LocalDate localDate) {
+    this.localDate = localDate;
+  }
+
+  public void setLow(double low) {
+    this.low = low;
+  }
+
+  public void setOpen(double open) {
+    this.open = open;
+  }
+
+  public void setVolume(long volume) {
+    this.volume = volume;
+  }
+
+  @Override
+  public String toString() {
+    return localDate + ";" + id + ";" + close + ";" + high + ";" + low + ";" + open + ";" + volume;
   }
 
 }

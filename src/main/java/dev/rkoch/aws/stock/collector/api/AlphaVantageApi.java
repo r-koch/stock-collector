@@ -2,7 +2,6 @@ package dev.rkoch.aws.stock.collector.api;
 
 import java.time.LocalDate;
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,19 +22,15 @@ public class AlphaVantageApi {
 
   private final AlphaVantage alphaVantage;
 
-  private final Map<String, List<StockUnit>> cache = new HashMap<>();
+  private final Queue<String> apiKeys;
 
-  private final Queue<String> apiKeys = new ArrayDeque<>();
+  private final Map<String, List<StockUnit>> cache = new HashMap<>();
 
   public AlphaVantageApi() {
     alphaVantage = AlphaVantage.api();
     String apiKey = System.getenv(ALPHAVANTAGE_API_KEY);
-    Collections.addAll(apiKeys, apiKey.split(";"));
+    apiKeys = new ArrayDeque<>(List.of(apiKey.split(";")));
     setApiKey();
-  }
-
-  private void setApiKey() {
-    alphaVantage.init(Config.builder().key(apiKeys.poll()).build());
   }
 
   public StockRecord getData(final LocalDate date, final String symbol) throws LimitExceededException, NoDataForDateException {
@@ -73,6 +68,10 @@ public class AlphaVantageApi {
       }
     }
     return stockUnits;
+  }
+
+  private void setApiKey() {
+    alphaVantage.init(Config.builder().key(apiKeys.poll()).build());
   }
 
 }
