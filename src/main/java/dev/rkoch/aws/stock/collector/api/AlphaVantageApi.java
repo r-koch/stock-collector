@@ -1,11 +1,9 @@
 package dev.rkoch.aws.stock.collector.api;
 
 import java.time.LocalDate;
-import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import javax.naming.LimitExceededException;
 import com.crazzyghost.alphavantage.AlphaVantage;
 import com.crazzyghost.alphavantage.AlphaVantageException;
@@ -22,15 +20,11 @@ public class AlphaVantageApi {
 
   private final AlphaVantage alphaVantage;
 
-  private final Queue<String> apiKeys;
-
   private final Map<String, List<StockUnit>> cache = new HashMap<>();
 
   public AlphaVantageApi() {
     alphaVantage = AlphaVantage.api();
-    String apiKey = System.getenv(ALPHAVANTAGE_API_KEY);
-    apiKeys = new ArrayDeque<>(List.of(apiKey.split(";")));
-    setApiKey();
+    alphaVantage.init(Config.builder().key(System.getenv(ALPHAVANTAGE_API_KEY)).build());
   }
 
   public StockRecord getData(final LocalDate date, final String symbol) throws LimitExceededException, NoDataForDateException {
@@ -54,8 +48,7 @@ public class AlphaVantageApi {
         TimeSeriesResponse response = alphaVantage.timeSeries().daily().forSymbol(apiSymbol).outputSize(OutputSize.FULL).fetchSync();
         String errorMessage = response.getErrorMessage();
         if (errorMessage != null && !errorMessage.isBlank()) {
-          setApiKey();
-          return getStockUnits(symbol);
+          throw new LimitExceededException();
         }
         stockUnits = response.getStockUnits();
         cache.put(symbol, stockUnits);
@@ -68,10 +61,6 @@ public class AlphaVantageApi {
       }
     }
     return stockUnits;
-  }
-
-  private void setApiKey() {
-    alphaVantage.init(Config.builder().key(apiKeys.poll()).build());
   }
 
 }
