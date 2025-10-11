@@ -99,7 +99,7 @@ public class StockRecord implements ParquetRecord {
       public StockRecord add(StockRecord target, String heading, Object value) {
         switch (heading) {
           case LOCAL_DATE:
-            target.setLocalDate((LocalDate) value);
+            target.setLocalDate(LocalDate.ofEpochDay((int) value));
             return target;
           case ID:
             target.setId((String) value);
