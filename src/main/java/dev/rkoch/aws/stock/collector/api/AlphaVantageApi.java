@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import javax.naming.LimitExceededException;
 import com.crazzyghost.alphavantage.AlphaVantage;
-import com.crazzyghost.alphavantage.AlphaVantageException;
 import com.crazzyghost.alphavantage.Config;
 import com.crazzyghost.alphavantage.parameters.OutputSize;
 import com.crazzyghost.alphavantage.timeseries.response.StockUnit;
@@ -33,7 +32,7 @@ public class AlphaVantageApi {
         return StockRecord.of(symbol, stockUnit);
       }
     }
-    throw new NoDataForDateException("no data found for %s on date %s".formatted(symbol, date));
+    throw new NoDataForDateException("no data found for %s on %s".formatted(symbol, date));
   }
 
   public List<StockRecord> getData(final String symbol) throws LimitExceededException {
@@ -43,22 +42,14 @@ public class AlphaVantageApi {
   private List<StockUnit> getStockUnits(final String symbol) throws LimitExceededException {
     List<StockUnit> stockUnits = cache.get(symbol);
     if (stockUnits == null) {
-      try {
-        String apiSymbol = symbol.replace(".", "-");
-        TimeSeriesResponse response = alphaVantage.timeSeries().daily().forSymbol(apiSymbol).outputSize(OutputSize.FULL).fetchSync();
-        String errorMessage = response.getErrorMessage();
-        if (errorMessage != null && !errorMessage.isBlank()) {
-          throw new LimitExceededException();
-        }
-        stockUnits = response.getStockUnits();
-        cache.put(symbol, stockUnits);
-      } catch (AlphaVantageException e) {
-        if ("API Key not set".equalsIgnoreCase(e.getMessage())) {
-          throw new LimitExceededException("alphavantage limit exceeded for %s".formatted(LocalDate.now()));
-        } else {
-          throw e;
-        }
+      String apiSymbol = symbol.replace(".", "-");
+      TimeSeriesResponse response = alphaVantage.timeSeries().daily().forSymbol(apiSymbol).outputSize(OutputSize.FULL).fetchSync();
+      String errorMessage = response.getErrorMessage();
+      if (errorMessage != null && !errorMessage.isBlank()) {
+        throw new LimitExceededException("alphavantage limit exceeded for %s".formatted(LocalDate.now()));
       }
+      stockUnits = response.getStockUnits();
+      cache.put(symbol, stockUnits);
     }
     return stockUnits;
   }
