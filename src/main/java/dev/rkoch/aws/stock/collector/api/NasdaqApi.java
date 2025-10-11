@@ -31,18 +31,19 @@ public class NasdaqApi {
 
   private final Map<String, List<StockRecord>> cache = new HashMap<>();
 
-  private final HttpClient httpClient = HttpClient.newHttpClient();
+  private final HttpClient httpClient;
 
   private final LocalDate fromDate;
 
   private final LocalDate toDate = LocalDate.now();
 
-  public NasdaqApi() {
-    this(DEFAULT_FROM_DATE);
+  NasdaqApi() {
+    this(DEFAULT_FROM_DATE, HttpClient.newHttpClient());
   }
 
-  public NasdaqApi(LocalDate fromDate) {
+  public NasdaqApi(LocalDate fromDate, HttpClient httpClient) {
     this.fromDate = fromDate;
+    this.httpClient = httpClient;
   }
 
   private String cleanNumber(final String number) {

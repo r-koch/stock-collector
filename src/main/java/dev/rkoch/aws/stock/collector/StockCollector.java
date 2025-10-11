@@ -7,12 +7,10 @@ import javax.naming.LimitExceededException;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import dev.rkoch.aws.collector.utils.State;
-import dev.rkoch.aws.s3.parquet.S3Parquet;
 import dev.rkoch.aws.stock.collector.api.AlphaVantageApi;
 import dev.rkoch.aws.stock.collector.api.NasdaqApi;
 import dev.rkoch.aws.stock.collector.exception.NoDataForDateException;
 import dev.rkoch.aws.stock.collector.exception.SymbolNotExistsException;
-import software.amazon.awssdk.regions.Region;
 
 public class StockCollector {
 
@@ -22,35 +20,31 @@ public class StockCollector {
 
   private final LambdaLogger logger;
 
-  private final Region region;
+  private final Handler handler;
 
   private AlphaVantageApi alphaVantageApi;
 
   private NasdaqApi nasdaqApi;
 
-  private S3Parquet s3Parquet;
-
-  private State state;
-
-  public StockCollector(LambdaLogger logger, Region region) {
+  public StockCollector(LambdaLogger logger, Handler handler) {
     this.logger = logger;
-    this.region = region;
+    this.handler = handler;
   }
 
   public void collect() {
     try {
-      collect(Symbols.get());
+      collect(new Symbols(handler.getS3Parquet()).get());
     } catch (Exception e) {
       logger.log(e.getMessage(), LogLevel.ERROR);
     }
   }
 
   private void collect(final List<String> symbols) {
-    try (State state = getState()) {
+    try (State state = new State(handler.getS3Client(), BUCKET_NAME)) {
       LocalDate limitExceeded = state.getAvLimitExceededDate();
       LocalDate now = LocalDate.now();
       if (limitExceeded == null || now.isAfter(limitExceeded)) {
-        LocalDate date = getStartDate();
+        LocalDate date = getStartDate(state);
         for (; date.isBefore(now); date = date.plusDays(1)) {
           try {
             List<StockRecord> records = getData(date, symbols);
@@ -70,13 +64,6 @@ public class StockCollector {
         }
       }
     }
-  }
-
-  private State getState() {
-    if (state == null) {
-      state = new State(region, BUCKET_NAME);
-    }
-    return state;
   }
 
   private AlphaVantageApi getAlphaVantageApi() {
@@ -116,23 +103,16 @@ public class StockCollector {
 
   private NasdaqApi getNasdaqApi(final LocalDate date) {
     if (nasdaqApi == null) {
-      nasdaqApi = new NasdaqApi(date);
+      nasdaqApi = new NasdaqApi(date, handler.getHttpClient());
     }
     return nasdaqApi;
   }
 
-  private S3Parquet getS3Parquet() {
-    if (s3Parquet == null) {
-      s3Parquet = new S3Parquet();
-    }
-    return s3Parquet;
-  }
-
-  private LocalDate getStartDate() {
-    LocalDate lastAddedStockDate = getState().getLastAddedStockDate();
+  private LocalDate getStartDate(final State state) {
+    LocalDate lastAddedStockDate = state.getLastAddedStockDate();
     if (lastAddedStockDate == null) {
       LocalDate startDate = LocalDate.now().minusYears(10).minusDays(1);
-      getState().setNasdaqStartDate(startDate);
+      state.setNasdaqStartDate(startDate);
       return startDate;
     } else {
       return lastAddedStockDate.plusDays(1);
@@ -140,7 +120,7 @@ public class StockCollector {
   }
 
   private void insert(final LocalDate date, final List<StockRecord> records) throws Exception {
-    getS3Parquet().write(BUCKET_NAME, PARQUET_KEY.formatted(date), records, new StockRecord().getDehydrator());
+    handler.getS3Parquet().write(BUCKET_NAME, PARQUET_KEY.formatted(date), records);
   }
 
 }

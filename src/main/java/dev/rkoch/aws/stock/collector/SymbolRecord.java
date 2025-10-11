@@ -8,7 +8,7 @@ import blue.strategic.parquet.Dehydrator;
 import blue.strategic.parquet.Hydrator;
 import dev.rkoch.aws.s3.parquet.ParquetRecord;
 
-public class SymbolRecord implements ParquetRecord {
+public class SymbolRecord implements ParquetRecord<SymbolRecord> {
 
   private static final String ID = "id";
   private static final String SECTOR = "sector";
